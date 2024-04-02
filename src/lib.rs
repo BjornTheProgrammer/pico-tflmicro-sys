@@ -1,3 +1,5 @@
 #![no_std]
 
-pub mod bindings;
+mod bindings;
+
+pub use bindings::root::*;

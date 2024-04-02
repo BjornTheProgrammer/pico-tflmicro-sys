@@ -141,7 +141,6 @@ pub fn create_bindgen(query: Query<'_>, sysroot: &str, cpp_headers: Vec<PathBuf>
 		.enable_cxx_namespaces()
 		.derive_default(true)
 		.size_t_is_usize(true)
-		.use_core()
 		.ctypes_prefix("cty")
 		// Types
 		.allowlist_type("tflite::MicroErrorReporter")
