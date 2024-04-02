@@ -166,7 +166,6 @@ pub fn create_bindgen(query: Query<'_>, sysroot: &str, cpp_headers: Vec<PathBuf>
 		.derive_partialeq(true)
 		.derive_eq(true)
 		.detect_include_paths(false)
-		.parse_callbacks(Box::new(::bindgen::CargoCallbacks::new()))
 		.emit_clang_ast();
 	Ok(binder)
 }
