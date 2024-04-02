@@ -1,10 +1,10 @@
 [package]
 name = "pico-tflmicro-sys"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Bjorn Beishline"]
 description = "Rust bindings of TensorFlow Lite for Microcontrollers for Raspberry Pi Pico"
-keywords = ["pico", "tflmicro", "sys", "no_std", "embedded", "microcontroller", "tensorflow"]
+keywords = ["pico", "tflmicro", "sys", "microcontroller", "tensorflow"]
 categories = ["no-std", "embedded", "api-bindings", "computer-vision"]
 license = "MIT"
 
@@ -14,7 +14,6 @@ include = [
 	"**/*.md",
 	"**/*.rs",
 	"prebuilt/**",
-	"submodules/pico-tflmicro",
 ]
 
 [dependencies]
@@ -26,6 +25,7 @@ bindgen = "0.63"
 anyhow = "1.0.81"
 walkdir = "2.5.0"
 cc = { version = "1.0.90", features = ["parallel"] }
+downloader = "0.2.7"
 
 [features]
 build = []

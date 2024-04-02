@@ -5,6 +5,7 @@ use ::bindgen::{Builder, CodegenConfig, EnumVariation};
 use embuild::{bindgen::{self}, cargo, cmake::{self, file_api::{codemodel::Language, ObjKind}, Query}};
 use walkdir::WalkDir;
 use anyhow::{bail, Context, Error};
+use downloader::{downloader::Downloader, Download};
 
 #[allow(unused_macros)]
 macro_rules! p {
@@ -173,35 +174,35 @@ pub fn create_bindgen(query: Query<'_>, sysroot: &str, cpp_headers: Vec<PathBuf>
 // Taken from https://github.com/Recognition2/tfmicro under apache license
 fn run_command_or_fail<P, S>(dir: &str, cmd: P, args: &[S])
 where
-    P: AsRef<Path>,
-    S: Borrow<str> + AsRef<OsStr>,
+	P: AsRef<Path>,
+	S: Borrow<str> + AsRef<OsStr>,
 {
-    let cmd = cmd.as_ref();
-    let cmd = if cmd.components().count() > 1 && cmd.is_relative() {
-        // If `cmd` is a relative path (and not a bare command that should be
-        // looked up in PATH), absolutize it relative to `dir`, as otherwise the
-        // behavior of std::process::Command is undefined.
-        // https://github.com/rust-lang/rust/issues/37868
-        PathBuf::from(dir)
-            .join(cmd)
-            .canonicalize()
-            .expect("canonicalization failed")
-    } else {
-        PathBuf::from(cmd)
-    };
-    eprintln!(
-        "Running command: \"{} {}\" in dir: {}",
-        cmd.display(),
-        args.join(" "),
-        dir
-    );
-    let ret = Command::new(cmd).current_dir(dir).args(args).status();
-    match ret.map(|status| (status.success(), status.code())) {
-        Ok((true, _)) => {}
-        Ok((false, Some(c))) => panic!("Command failed with error code {}", c),
-        Ok((false, None)) => panic!("Command got killed"),
-        Err(e) => panic!("Command failed with error: {}", e),
-    }
+	let cmd = cmd.as_ref();
+	let cmd = if cmd.components().count() > 1 && cmd.is_relative() {
+		// If `cmd` is a relative path (and not a bare command that should be
+		// looked up in PATH), absolutize it relative to `dir`, as otherwise the
+		// behavior of std::process::Command is undefined.
+		// https://github.com/rust-lang/rust/issues/37868
+		PathBuf::from(dir)
+			.join(cmd)
+			.canonicalize()
+			.expect("canonicalization failed")
+	} else {
+		PathBuf::from(cmd)
+	};
+	eprintln!(
+		"Running command: \"{} {}\" in dir: {}",
+		cmd.display(),
+		args.join(" "),
+		dir
+	);
+	let ret = Command::new(cmd).current_dir(dir).args(args).status();
+	match ret.map(|status| (status.success(), status.code())) {
+		Ok((true, _)) => {}
+		Ok((false, Some(c))) => panic!("Command failed with error code {}", c),
+		Ok((false, None)) => panic!("Command got killed"),
+		Err(e) => panic!("Command failed with error: {}", e),
+	}
 }
 
 pub fn get_cmake_query() -> Result<Query<'static>, Error> {
@@ -218,9 +219,9 @@ pub fn get_cmake_query() -> Result<Query<'static>, Error> {
 
 fn generate_and_output_bindings() -> Result<(), Error> {
 	if !Path::new("submodules/pico-tflmicro/README.md").exists() {
-        eprintln!("Setting up submodules");
-        run_command_or_fail(".", "git", &["submodule", "update", "--init"]);
-    }
+		eprintln!("Setting up submodules");
+		run_command_or_fail(".", "git", &["submodule", "update", "--init"]);
+	}
 
 	let target = "thumbv6m-none-eabi";
 	let pico_tflmicro_dir = "submodules/pico-tflmicro".to_string();
@@ -257,17 +258,34 @@ fn generate_and_output_bindings() -> Result<(), Error> {
 	Ok(())
 }
 
+pub fn use_prebuilt_binary() {
+	let out_dir = cargo::out_dir().into_os_string().into_string().expect("Could not find outdir to build");
+	let binary_name = "libpico-tflmicro.a".to_string();
+	let download_folder = format!("{}/prebuilt", out_dir);
+	let download_location = format!("{}/{}", download_folder, binary_name);
+	let _ = std::fs::create_dir(Path::new(&download_folder));
+
+	if !Path::new(&download_location).exists() {
+		let download = Download::new("https://github.com/BjornTheProgrammer/pico-tflmicro-sys/releases/download/libpico-tflmicro.a/libpico-tflmicro.a");
+		let _ = Downloader::builder()
+			.download_folder(Path::new(&download_folder))
+			.build()
+			.unwrap()
+			.download(&[download])
+			.unwrap();
+	}
+
+	println!("cargo:warning=Feature 'build' is disabled. Prebuilt binary and bindings will be used.");
+	println!("cargo:rustc-link-search=native={}", download_folder);
+	println!("cargo:rustc-link-lib=static=pico-tflmicro");
+}
+
 fn main() -> Result<(), Error> {
 	#[cfg(feature = "build")]
 	generate_and_output_bindings()?;
 	
 	#[cfg(not(feature = "build"))]
-	{
-		let binary = Path::new("prebuilt").to_str().unwrap();
-		println!("cargo:warning=Feature 'build' is disabled. Prebuilt binary and bindings will be used.");
-		println!("cargo:rustc-link-search=native={}", binary);
-		println!("cargo:rustc-link-lib=static=pico-tflmicro");
-	}
+	use_prebuilt_binary();
 
 	Ok(())
 }
